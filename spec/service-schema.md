@@ -192,11 +192,54 @@ projectKey: `actio`
 
 ---
 
-### 3.2 Memoria (v0.2+)
+### 3.2 Memoria
 
 projectKey: `memoria`
 
-予定コマンド (詳細は v0.2 で確定):
+#### 3.2.1 `location.summary.append` (v0.1)
+
+5 分間隔で集計された移動サマリを Memoria に追記する。 Legatus が
+OwnTracks (MQTT) で受けた個別の location event は **Legatus の memory に
+しか乗らず**、 flush 時に集約済みサマリだけが Memoria 側に永続化される。
+
+**Caller**: `legatus`
+**Direction**: `legatus → memoria`
+**Idempotency**: payload 内に `requestId` を含めて Memoria 側で重複弾きする想定 (実装は Memoria 側担当)。
+
+**Payload**:
+
+```typescript
+{
+  userId: string;                // Cernere users.id (UUID v4)
+  intervalStart: string;         // ISO 8601 UTC, flush window 開始
+  intervalEnd: string;           // ISO 8601 UTC, flush window 内最終 event の tst
+  start: { lat: number; lon: number };
+  end:   { lat: number; lon: number };
+  totalDistanceMeters: number;   // 連続点間の累積距離
+  netDistanceMeters: number;     // start ↔ end の直線距離
+  maxSpeedKmh?: number;          // OwnTracks vel が来ていれば
+  meanSpeedKmh?: number;
+  pointCount: number;
+  deviceIds: string[];
+  source: {
+    via: "legatus";
+    tool: "owntracks-mqtt";
+    requestId?: string;
+  };
+}
+```
+
+**Skip 条件 (Legatus 側で flush しない / Memoria に投げない)**:
+
+| 条件 | 動作 |
+|------|------|
+| buffer が空 (5 分間 OwnTracks publish 0 件) | Memoria 呼び出しなし |
+| `netDistanceMeters < LEGATUS_LOCATION_MIN_DISPLACEMENT_M` (default 100m) | "動いていない" → Memoria 呼び出しなし |
+| Cernere user session 未取得 | OwnTracks event ごと drop (buffer にも入れない) |
+
+**Response**: Memoria 側で生成したサマリ ID と任意の URL を返す想定 (具体は Memoria 側 spec で確定)。
+
+#### 3.2.2 v0.2+ 予定
 
 | command | 説明 |
 |---------|------|
