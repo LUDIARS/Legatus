@@ -1,0 +1,5 @@
+# Example passwd file (hashed, for reference shape only).
+# 実物は infra/mosquitto/passwd に配置 (gitignored).
+# 生成方法は infra/mosquitto/README.md 参照.
+phone:$7$101$<base64-salt>$<base64-hash>
+legatus-sub:$7$101$<base64-salt>$<base64-hash>

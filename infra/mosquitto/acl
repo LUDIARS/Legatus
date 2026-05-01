@@ -1,0 +1,11 @@
+# Legatus Mosquitto ACL.
+#
+# - phone (publisher): 自分の topic prefix (owntracks/<user>/#) のみ readwrite
+# - legatus-sub: 全 owntracks/+/+ を read
+
+user phone
+topic readwrite owntracks/phone/#
+
+user legatus-sub
+topic read owntracks/+/+
+topic read owntracks/+/+/+

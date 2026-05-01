@@ -196,8 +196,22 @@ Infisical で設定する主要キー:
 
 ### 3. Mosquitto + Tailscale 設定
 
-別途 OwnTracks 側のセットアップガイドあり (本 README とは別。Legatus PC で `mosquitto` を install
-→ Tailscale tailnet IP のみ listen → phone OwnTracks app に Tailscale IP + topic prefix `owntracks/<user>/<device>` を設定)。
+Mosquitto は Docker で同居運用。passwd 生成 + 起動手順は [`infra/mosquitto/README.md`](infra/mosquitto/README.md) を参照。
+
+```powershell
+# 1. passwd ファイル生成 (一度だけ)
+Set-Content -Path infra/mosquitto/passwd -Value "phone:CHANGE_ME`nlegatus-sub:CHANGE_ME" -Encoding ASCII -NoNewline
+docker run --rm -v "${PWD}/infra/mosquitto/passwd:/mosquitto/config/passwd" eclipse-mosquitto:2.0 mosquitto_passwd -U /mosquitto/config/passwd
+
+# 2. broker 起動
+docker compose up -d mosquitto
+
+# 3. Tailscale funnel で公衆 TLS エンドポイント (phone が tailnet 切れた時の備え)
+& "C:\Program Files\Tailscale\tailscale.exe" funnel --bg --tls-terminated-tcp=8443 tcp://127.0.0.1:1883
+```
+
+phone は `<machine>.<tailnet>.ts.net:8443` に MQTT-TLS で接続。
+詳細フローは [`infra/mosquitto/README.md`](infra/mosquitto/README.md) #phone 設定。
 
 ### 4. 起動
 

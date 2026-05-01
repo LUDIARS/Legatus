@@ -23,6 +23,8 @@ yarn-error.log*
 .env.*
 !.env.example
 .env.secrets
+infra/mosquitto/passwd
+infra/mosquitto/.passwords.txt
 
 # OS
 .DS_Store
