@@ -10,7 +10,7 @@
 import { app, Menu, Tray, dialog } from "electron";
 import { join } from "node:path";
 import { startBackend, type BackendHandle } from "../backend/server.js";
-import { loadConfig } from "../shared/config.js";
+import { loadConfig, type LegatusConfig } from "../shared/config.js";
 import { createChildLogger } from "../shared/logger.js";
 import { openDb } from "../backend/db/index.js";
 import { getOrCreateDbKey } from "../backend/auth/keychain.js";

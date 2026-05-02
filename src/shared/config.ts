@@ -1,43 +1,70 @@
 /**
  * Legatus runtime config — env から組み立てる単一エントリポイント.
  *
- * env-cli が `.env` を生成する前提。Electron / backend / MCP すべてが本モジュール経由で env を読む。
+ * env-cli が `.env` を生成する前提だが、 `.env` が手書きで存在する dev
+ * 起動でも同じ shape で動く. Cernere 認証は optional (VPN/local 運用想定).
  */
 
+export interface CernereConfig {
+  enabled: boolean;
+  url: string;
+  projectClientId: string;
+  projectClientSecret: string;
+  projectKey: string;
+}
+
+export interface RelayTargetsConfig {
+  memoria: { enabled: boolean; baseUrl: string };
+  actioPlacement: { enabled: boolean; baseUrl: string; serviceKey: string };
+}
+
 export interface LegatusConfig {
-  cernereUrl: string;
-  cernereProjectClientId: string;
-  cernereProjectClientSecret: string;
-  cernereProjectKey: string;
+  cernere: CernereConfig;
   localHost: string;
   localPort: number;
   dbPath: string;
   saPublicBaseUrl: string;
-  actioBaseUrl: string;
-  actioPlacementServiceKey: string;
+  ownerUserId: string;
+  relays: RelayTargetsConfig;
 }
 
 export function loadConfig(): LegatusConfig {
+  const cernereUrl = process.env.CERNERE_URL ?? "";
+  const cernereId = process.env.CERNERE_PROJECT_CLIENT_ID ?? "";
+  const cernereSecret = process.env.CERNERE_PROJECT_CLIENT_SECRET ?? "";
+  const cernereEnabled = !!(cernereUrl && cernereId && cernereSecret);
+
+  const memoriaBaseUrl = process.env.MEMORIA_BASE_URL ?? "";
+  const actioBaseUrl = process.env.ACTIO_BASE_URL ?? "";
+  const actioServiceKey = process.env.ACTIO_PLACEMENT_SERVICE_KEY ?? "";
+
   return {
-    cernereUrl: process.env.CERNERE_URL ?? "",
-    cernereProjectClientId: process.env.CERNERE_PROJECT_CLIENT_ID ?? "",
-    cernereProjectClientSecret: process.env.CERNERE_PROJECT_CLIENT_SECRET ?? "",
-    cernereProjectKey: process.env.CERNERE_PROJECT_KEY ?? "legatus",
+    cernere: {
+      enabled: cernereEnabled,
+      url: cernereUrl,
+      projectClientId: cernereId,
+      projectClientSecret: cernereSecret,
+      projectKey: process.env.CERNERE_PROJECT_KEY ?? "legatus",
+    },
     localHost: process.env.LEGATUS_LOCAL_HOST ?? "127.0.0.1",
     localPort: Number(process.env.LEGATUS_LOCAL_PORT ?? "17320"),
     dbPath: process.env.LEGATUS_DB_PATH ?? "",
     saPublicBaseUrl:
       process.env.LEGATUS_SA_PUBLIC_BASE_URL ?? "ws://127.0.0.1:{port}",
-    actioBaseUrl: process.env.ACTIO_BASE_URL ?? "",
-    actioPlacementServiceKey: process.env.ACTIO_PLACEMENT_SERVICE_KEY ?? "",
+    ownerUserId:
+      process.env.LEGATUS_OWNER_USER_ID ??
+      process.env.LEGATUS_FORCED_USER_ID ??
+      "",
+    relays: {
+      memoria: {
+        enabled: !!memoriaBaseUrl,
+        baseUrl: memoriaBaseUrl,
+      },
+      actioPlacement: {
+        enabled: !!(actioBaseUrl && actioServiceKey),
+        baseUrl: actioBaseUrl,
+        serviceKey: actioServiceKey,
+      },
+    },
   };
-}
-
-export function assertCernereProjectCredentials(c: LegatusConfig): void {
-  if (!c.cernereProjectClientId || !c.cernereProjectClientSecret || !c.cernereUrl) {
-    throw new Error(
-      "CERNERE_URL / CERNERE_PROJECT_CLIENT_ID / CERNERE_PROJECT_CLIENT_SECRET が未設定です。" +
-        "Cernere admin で legatus project を発行してから env を再生成してください。",
-    );
-  }
 }

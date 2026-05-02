@@ -50,6 +50,9 @@ export async function tasksCreate(input: TasksCreateInput): Promise<TasksCreateR
     );
   }
   const peer = currentPeerAdapter();
+  if (!peer) {
+    throw new LegatusError("upstream_error", "PeerAdapter unavailable (cernere mode OFF)");
+  }
 
   try {
     return await peer.invoke<TasksCreateResponse>(

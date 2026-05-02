@@ -42,7 +42,11 @@ export function openSignInPopup(cfg: LegatusConfig): void {
     return;
   }
 
-  const loginUrl = new URL("/login", cfg.cernereUrl);
+  if (!cfg.cernere.enabled) {
+    log.warn("openSignInPopup called but cernere mode is OFF — ignoring");
+    return;
+  }
+  const loginUrl = new URL("/login", cfg.cernere.url);
   loginUrl.searchParams.set("mode", "composite");
   loginUrl.searchParams.set("redirect", REDIRECT);
 
