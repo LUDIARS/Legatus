@@ -1,0 +1,52 @@
+{
+  "name": "legatus",
+  "version": "0.1.0",
+  "description": "LUDIARS personal-PC service envoy. Bridges external tools (Claude Code / MCP / POST API) to LUDIARS services via Cernere PeerAdapter.",
+  "type": "module",
+  "private": true,
+  "main": "dist/electron/main.js",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "npm run build:backend && npm run build:electron",
+    "build:backend": "tsc -p tsconfig.backend.json",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "dev": "npx tsx ../Cernere/packages/env-cli/src/cli.ts env && electron .",
+    "dev:backend": "npx tsx ../Cernere/packages/env-cli/src/cli.ts env && tsx watch src/backend/server.ts",
+    "start": "electron dist/electron/main.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit -p tsconfig.backend.json && tsc --noEmit -p tsconfig.electron.json",
+    "env:setup": "npx tsx ../Cernere/packages/env-cli/src/cli.ts setup",
+    "env:initialize": "npx tsx ../Cernere/packages/env-cli/src/cli.ts initialize",
+    "env:test": "npx tsx ../Cernere/packages/env-cli/src/cli.ts test",
+    "env:list": "npx tsx ../Cernere/packages/env-cli/src/cli.ts list",
+    "env:get": "npx tsx ../Cernere/packages/env-cli/src/cli.ts get",
+    "env:set": "npx tsx ../Cernere/packages/env-cli/src/cli.ts set",
+    "env:env": "npx tsx ../Cernere/packages/env-cli/src/cli.ts env",
+    "env:gen": "npx tsx ../Cernere/packages/env-cli/src/cli.ts env"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "@ludiars/cernere-service-adapter": "^0.2.1",
+    "better-sqlite3": "^11.7.0",
+    "hono": "^4.6.0",
+    "keytar": "^7.9.0",
+    "mqtt": "^5.15.1",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0",
+    "ws": "^8.18.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13",
+    "electron": "^33.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
+  },
+  "license": "MIT"
+}

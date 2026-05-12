@@ -1,0 +1,24 @@
+services:
+  # ─── Mosquitto MQTT broker (Legatus 同居) ──────────────────
+  # OwnTracks (iOS/Android) からの位置情報を受け取る broker.
+  # phone は tailnet 経由 (or tailscale funnel + TLS 終端) で接続.
+  # Legatus backend は 127.0.0.1:1883 で subscribe.
+  #
+  # 9001 (MQTT-WS) は LUDIARS infra MinIO (9001) と衝突するため expose しない.
+  # MQTT-WS が必要になった場合は別 port (例 9002) に振り直す.
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: legatus-mosquitto
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1883:1883"
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infra/mosquitto/passwd:/mosquitto/config/passwd:ro
+      - ./infra/mosquitto/acl:/mosquitto/config/acl:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+
+volumes:
+  mosquitto-data:
+  mosquitto-log:

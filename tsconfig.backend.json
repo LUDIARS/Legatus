@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist/backend",
+    "rootDir": "src"
+  },
+  "include": [
+    "src/backend/**/*.ts",
+    "src/mcp/**/*.ts",
+    "src/shared/**/*.ts"
+  ]
+}
