@@ -1,0 +1,128 @@
+{
+  "repo": "Legatus",
+  "reviewed_at": "2026-05-13",
+  "reviewer": "claude-opus-4-7[1m]",
+  "target_revision": "4e810a0",
+  "target_branch": "main",
+  "scope": "v0.1 scaffold + OwnTracks/dnstap forwarder (PR #1 merged)",
+  "ratings": {
+    "design": "B+",
+    "vulnerability": "B",
+    "implementation": "B+",
+    "missing_features": "B",
+    "quality": "A-"
+  },
+  "weighted_score": 79,
+  "weights": {
+    "design": 0.20,
+    "vulnerability": 0.25,
+    "implementation": 0.25,
+    "missing_features": 0.15,
+    "quality": 0.15
+  },
+  "overall_rating": "B+",
+  "counts": {
+    "high": 0,
+    "medium": 5,
+    "low": 14,
+    "good": 6
+  },
+  "autofix_count": 0,
+  "autofix_candidates": 10,
+  "files_reviewed": [
+    "README.md",
+    "spec/service-schema.md",
+    "package.json",
+    ".env.example",
+    ".gitignore",
+    "src/backend/server.ts",
+    "src/backend/owntracks/coordinator.ts",
+    "src/backend/owntracks/client.ts",
+    "src/backend/owntracks/buffer.ts",
+    "src/backend/owntracks/config.ts",
+    "src/backend/owntracks/payload.ts",
+    "src/backend/owntracks/summarizer.ts",
+    "src/backend/services/actio-placement.ts",
+    "src/backend/services/memoria-location-http.ts",
+    "src/backend/services/memoria-location.ts",
+    "src/backend/services/relay-targets.ts",
+    "src/backend/db/crypto.ts",
+    "src/backend/db/schema.ts",
+    "src/backend/db/index.ts",
+    "src/backend/auth/keychain.ts",
+    "src/backend/auth/cernere-session.ts",
+    "src/backend/audit/idempotency.ts",
+    "src/backend/audit/audit-log.ts",
+    "src/backend/peer/peer-adapter.ts",
+    "src/backend/http/app.ts",
+    "src/backend/http/auth-middleware.ts",
+    "src/backend/dnstap/coordinator.ts",
+    "src/backend/dnstap/dnsmasq.ts",
+    "src/electron/sign-in.ts",
+    "src/shared/config.ts",
+    "tests/owntracks-buffer.test.ts"
+  ],
+  "key_findings": [
+    "v0.1 scope (OwnTracks MQTT subscribe + Actio Placement HTTP + Memoria summary HTTP + Skip rules + Cernere session encryption + audit_log) is fully implemented",
+    "IdempotencyCache (src/backend/audit/idempotency.ts) and bearerAuth middleware (src/backend/http/auth-middleware.ts) are dead code — exported but not wired anywhere",
+    "Memoria HTTP relay (src/backend/services/memoria-location-http.ts:38-61) has no authentication header; relies on tailnet/loopback assumption that is fragile if MEMORIA_BASE_URL is misconfigured",
+    "MQTT broker auth (OWNTRACKS_MQTT_USERNAME/_PASSWORD) is optional by env default; README treats it as recommendation only",
+    "Personal-data-non-retention policy strictly upheld: LocationBuffer.flush() drains + discards atomically, audit_log carries only userId/command/requestId",
+    "Code hygiene high: 1 file = 1 responsibility, all modules use createChildLogger, spec section numbers referenced in comments, fake-timer flush test included",
+    "DB path resolution falls back to process.cwd() (src/backend/server.ts:74-76) — risky for production Electron launch; should use app.getPath('userData')",
+    "HTTP relay paths (actio-placement / memoria-location-http) lack unit tests with network mocks"
+  ],
+  "top_issues": [
+    {
+      "id": "M-1",
+      "severity": "medium",
+      "category": "missing",
+      "title": "IdempotencyCache not wired",
+      "location": "src/backend/audit/idempotency.ts + src/backend/owntracks/coordinator.ts:79,124",
+      "spec_ref": "spec/service-schema.md §7.2"
+    },
+    {
+      "id": "M-3",
+      "severity": "medium",
+      "category": "missing",
+      "title": "bearerAuth middleware never applied",
+      "location": "src/backend/http/auth-middleware.ts",
+      "spec_ref": "spec/service-schema.md §5.2"
+    },
+    {
+      "id": "V-1",
+      "severity": "medium",
+      "category": "vulnerability",
+      "title": "Memoria HTTP relay has no auth header",
+      "location": "src/backend/services/memoria-location-http.ts:38-61"
+    },
+    {
+      "id": "V-2",
+      "severity": "medium",
+      "category": "vulnerability",
+      "title": "Co-located .env / .env.secrets handling lacks documented hygiene",
+      "location": ".env.secrets + .gitignore"
+    },
+    {
+      "id": "I-1",
+      "severity": "medium",
+      "category": "implementation",
+      "title": "Double sort in LocationBuffer skip path",
+      "location": "src/backend/owntracks/buffer.ts:80-84 + summarizer.ts:38"
+    },
+    {
+      "id": "I-3",
+      "severity": "low",
+      "category": "implementation",
+      "title": "dbPath uses process.cwd() fallback",
+      "location": "src/backend/server.ts:74-76"
+    }
+  ],
+  "next_actions": [
+    "Wire bearerAuth or remove (decide at v0.2 kickoff)",
+    "Wire IdempotencyCache into coordinator outbound calls",
+    "Add per-call service-key to Memoria HTTP relay spec, coordinate with Memoria endpoint PR",
+    "Switch Electron dbPath to app.getPath('userData') for production launch",
+    "Add HTTP relay unit tests with fetch mock for actio-placement / memoria-location-http"
+  ]
+}
