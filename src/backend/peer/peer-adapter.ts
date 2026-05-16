@@ -1,31 +1,35 @@
 /**
- * Legatus PeerAdapter init (caller-only).
+ * Cernere PeerAdapter init (caller-only, optional).
  *
- * v0.1 では inbound peer command (`accept`) を持たない。Outbound 専用。
- * 将来 (v0.3+) で legatus.notify / legatus.health を追加する際に accept を埋める。
+ * Legatus は Cernere モード OFF (env 未設定) でも起動する. その場合は
+ * peer adapter は null. Memoria/Actio 等への relay は HTTP path 経由となる.
  *
- * Imperativus の src/service-adapter.ts と同様のシングルトンパターン。
+ * Cernere モード時のみ inbound peer command を v0.3+ で追加する想定 (現状空).
  */
 
 import { PeerAdapter } from "@ludiars/cernere-service-adapter";
-import type { LegatusConfig } from "../../shared/config.js";
+import type { CernereConfig } from "../../shared/config.js";
 import { createChildLogger } from "../../shared/logger.js";
 
 const log = createChildLogger("peer-sa");
 let adapter: PeerAdapter | null = null;
 
-export async function initPeerAdapter(cfg: LegatusConfig): Promise<PeerAdapter> {
+export async function initPeerAdapter(cfg: CernereConfig): Promise<PeerAdapter | null> {
+  if (!cfg.enabled) {
+    log.info("cernere mode OFF (CERNERE_PROJECT_* unset) — peer adapter not started");
+    return null;
+  }
   if (adapter) return adapter;
 
   adapter = new PeerAdapter({
-    projectId: cfg.cernereProjectClientId,
-    projectSecret: cfg.cernereProjectClientSecret,
-    cernereBaseUrl: cfg.cernereUrl,
+    projectId: cfg.projectClientId,
+    projectSecret: cfg.projectClientSecret,
+    cernereBaseUrl: cfg.url,
     saListenHost: "127.0.0.1",
     saListenPort: 0,
-    saPublicBaseUrl: cfg.saPublicBaseUrl,
+    saPublicBaseUrl: "ws://127.0.0.1:{port}",
     accept: {
-      // v0.1: Legatus は invoker only. inbound peer command は v0.3+ で追加.
+      // v0.1: caller only. inbound peer command は v0.3+ で追加.
     },
   });
 
@@ -34,8 +38,7 @@ export async function initPeerAdapter(cfg: LegatusConfig): Promise<PeerAdapter> 
   return adapter;
 }
 
-export function currentPeerAdapter(): PeerAdapter {
-  if (!adapter) throw new Error("PeerAdapter not initialised. Call initPeerAdapter() first.");
+export function currentPeerAdapter(): PeerAdapter | null {
   return adapter;
 }
 

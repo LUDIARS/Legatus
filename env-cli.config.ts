@@ -4,14 +4,11 @@ const config: EnvCliConfig = {
   name: "Legatus",
 
   /**
-   * Legatus が .env から読むキー一覧。
-   * Infisical に同名キーがあればそちらを優先し、なければ default を使用。
-   *
-   * Legatus は個人 PC 常駐サービスのため、CERNERE_PROJECT_CLIENT_ID/SECRET
-   * のみが secret。他は loopback 用の設定値。
+   * Legatus が .env から読むキー一覧.
+   * Cernere モードは optional. VPN+ローカル運用時は CERNERE_PROJECT_* を空にして OK.
    */
   infraKeys: {
-    // ─── Cernere 認証 (project identity) ──────────────────
+    // ─── Cernere 認証 (optional) ─────────────────────────
     CERNERE_URL: "http://localhost:8080",
     CERNERE_PROJECT_CLIENT_ID: "",
     CERNERE_PROJECT_CLIENT_SECRET: "",
@@ -22,13 +19,16 @@ const config: EnvCliConfig = {
     LEGATUS_LOCAL_PORT: "17320",
 
     // ─── Storage ──────────────────────────────────────────
-    LEGATUS_DB_PATH: "",          // 空 = userData/legatus.db (Electron app.getPath)
+    LEGATUS_DB_PATH: "",
 
     // ─── Logging ──────────────────────────────────────────
     LEGATUS_LOG_LEVEL: "info",
 
-    // ─── Service Adapter listen (peer in/out) ─────────────
+    // ─── Cernere mode 用 SA listen ────────────────────────
     LEGATUS_SA_PUBLIC_BASE_URL: "ws://127.0.0.1:{port}",
+
+    // ─── Owner identity (Cernere session が無いローカル運用時) ──
+    LEGATUS_OWNER_USER_ID: "",
 
     // ─── OwnTracks (MQTT subscriber) ──────────────────────
     OWNTRACKS_ENABLED: "true",
@@ -38,14 +38,29 @@ const config: EnvCliConfig = {
     OWNTRACKS_MQTT_TOPIC: "owntracks/+/+",
     OWNTRACKS_MQTT_CLIENT_ID: "",
 
-    // ─── Location buffer (Memoria summarizer) ─────────────
+    // ─── Location buffer ──────────────────────────────────
     LEGATUS_LOCATION_FLUSH_INTERVAL_MS: "300000",
     LEGATUS_LOCATION_MIN_DISPLACEMENT_M: "100",
-    LEGATUS_FORCED_USER_ID: "",
 
-    // ─── Actio Placement forwarder ────────────────────────
+    // ─── Memoria HTTP relay (loopback/tailnet 内, 認証なし) ──
+    MEMORIA_BASE_URL: "",
+
+    // ─── Memoria PeerAdapter relay (Cernere モード時の選択肢) ──
+    MEMORIA_USE_PEER_ADAPTER: "false",
+
+    // ─── Actio Placement HTTP relay (既存 Iv パターン) ──
     ACTIO_BASE_URL: "",
     ACTIO_PLACEMENT_SERVICE_KEY: "",
+
+    // ─── DNS / SNI tap (Phase B, default OFF) ─────────
+    LEGATUS_DNSTAP_ENABLED: "false",
+    LEGATUS_DNSMASQ_LOG_PATH: "/var/log/dnsmasq.log",
+    LEGATUS_TAILSCALE_BIN: "tailscale",
+    LEGATUS_TAILSCALE_REFRESH_MS: "300000",
+    LEGATUS_DNSTAP_FLUSH_MS: "30000",
+    LEGATUS_DNSTAP_DEDUPE_MS: "5000",
+    LEGATUS_DNSTAP_SKIP_DOMAINS: "",
+    LEGATUS_DNSTAP_FORWARD_URL: "http://localhost:5180/api/visits/external",
   },
 
   defaultSiteUrl: "https://app.infisical.com",

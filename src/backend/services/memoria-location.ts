@@ -64,6 +64,7 @@ export async function forwardSummaryToMemoria(
 
   try {
     const peer = currentPeerAdapter();
+    if (!peer) return { ok: false, error: "PeerAdapter unavailable (cernere mode OFF)" };
     await peer.invoke("memoria", "location.summary.append", parsed.data);
     return { ok: true };
   } catch (err) {

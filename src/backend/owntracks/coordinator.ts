@@ -3,17 +3,20 @@
  *
  * 責務:
  *  1. MQTT subscriber を起動して LocationEvent を受ける
- *  2. 各 event を Actio.placement へ即時転送 (個別座標は Actio 側 webhook が判定)
- *  3. LocationBuffer に蓄積 → 5 分 flush → Memoria.location.summary.append へ転送
+ *  2. 各 event を即時 relay target (Actio 等) に投げる
+ *  3. LocationBuffer に蓄積 → 5 分 flush → 集計 relay target (Memoria 等) に投げる
  *
- * Cernere user session が無い間はすべて drop (signed in 後に再取得は phone 側に依存).
+ * Cernere モード OFF でも動作する. relay target はそれぞれ独立に enable/disable.
+ *
+ * userId 解決:
+ *  - LEGATUS_OWNER_USER_ID が設定されていればそれを使う (ローカル運用想定)
+ *  - 無ければ Cernere session store (popup ログイン後の値) を使う
+ *  - どちらも無ければ event を drop
  */
 
 import { createChildLogger } from "../../shared/logger.js";
 import { startOwntracksClient, type OwntracksClientHandle } from "./client.js";
 import { LocationBuffer } from "./buffer.js";
-import { forwardLocationToActio, type ActioPlacementForwardConfig } from "../services/actio-placement.js";
-import { forwardSummaryToMemoria } from "../services/memoria-location.js";
 import { randomUUID } from "node:crypto";
 import type { CernereSessionStore } from "../auth/cernere-session.js";
 import type { AuditLog } from "../audit/audit-log.js";
@@ -22,16 +25,29 @@ import type { LocationEvent, LocationSummary } from "./types.js";
 
 const log = createChildLogger("owntracks-coord");
 
+export interface RelayTarget {
+  name: string;
+  /** event ごとに即時 relay (例: Actio Placement). 不要なら省略. */
+  forwardEvent?: (event: LocationEvent, userId: string) => Promise<RelayResult>;
+  /** 5 分集計の summary を relay (例: Memoria). 不要なら省略. */
+  forwardSummary?: (summary: LocationSummary, userId: string, requestId: string) => Promise<RelayResult>;
+}
+
+export interface RelayResult {
+  ok: boolean;
+  error?: string;
+}
+
 export interface CoordinatorDeps {
   config: OwntracksRuntimeConfig;
-  actioPlacement: ActioPlacementForwardConfig;
-  sessions: CernereSessionStore;
+  ownerUserId: string;
+  sessions: CernereSessionStore | null;
   audit: AuditLog;
+  relays: RelayTarget[];
 }
 
 export interface CoordinatorHandle {
   stop: () => Promise<void>;
-  /** Test 用: buffer の即時 flush */
   flushNow: () => Promise<LocationSummary | null>;
 }
 
@@ -41,32 +57,41 @@ export function startOwntracksCoordinator(deps: CoordinatorDeps): CoordinatorHan
     return null;
   }
 
+  const summaryRelays = deps.relays.filter((r) => !!r.forwardSummary);
+  const eventRelays = deps.relays.filter((r) => !!r.forwardEvent);
+
+  if (summaryRelays.length === 0 && eventRelays.length === 0) {
+    log.warn("no relay target configured — events will be received but discarded");
+  }
+
   const buffer = new LocationBuffer({
     flushIntervalMs: deps.config.flushIntervalMs,
     minDisplacementMeters: deps.config.minDisplacementMeters,
     onFlush: async (summary) => {
       const userId = resolveUserId(deps);
       if (!userId) {
-        log.debug("flush skipped — not signed in");
+        log.debug("flush skipped — no userId resolved");
         return;
       }
       const requestId = randomUUID();
-      const result = await forwardSummaryToMemoria(userId, summary, requestId);
-      deps.audit.record({
-        source: "internal",
-        command: "memoria.location.summary.append",
-        userId,
-        requestId,
-        status: result.ok ? "ok" : "error",
-        errorCode: result.ok ? undefined : "upstream_error",
-      });
-      if (!result.ok) {
-        log.warn({ err: result.error }, "memoria summary forward failed");
-      } else {
-        log.info(
-          { points: summary.pointCount, net: summary.netDistanceMeters },
-          "memoria summary appended",
-        );
+      for (const target of summaryRelays) {
+        const result = await target.forwardSummary!(summary, userId, requestId);
+        deps.audit.record({
+          source: "internal",
+          command: `${target.name}.location.summary`,
+          userId,
+          requestId,
+          status: result.ok ? "ok" : "error",
+          errorCode: result.ok ? undefined : "upstream_error",
+        });
+        if (!result.ok) {
+          log.warn({ target: target.name, err: result.error }, "summary forward failed");
+        } else {
+          log.info(
+            { target: target.name, points: summary.pointCount, net: summary.netDistanceMeters },
+            "summary forwarded",
+          );
+        }
       }
     },
   });
@@ -76,10 +101,25 @@ export function startOwntracksCoordinator(deps: CoordinatorDeps): CoordinatorHan
   try {
     mqttHandle = startOwntracksClient(deps.config.mqtt, async (event) => {
       const userId = resolveUserId(deps);
-      if (!userId) return; // 受信は来ているが session が無い間はすべて drop
+      if (!userId) return;
 
       buffer.push(event);
-      void forwardEventToActio(event, userId, deps);
+
+      for (const target of eventRelays) {
+        const requestId = randomUUID();
+        const result = await target.forwardEvent!(event, userId);
+        deps.audit.record({
+          source: "internal",
+          command: `${target.name}.location.event`,
+          userId,
+          requestId,
+          status: result.ok ? "ok" : "error",
+          errorCode: result.ok ? undefined : "upstream_error",
+        });
+        if (!result.ok) {
+          log.warn({ target: target.name, err: result.error }, "event forward failed");
+        }
+      }
     });
   } catch (err) {
     log.error({ err: (err as Error).message }, "failed to start mqtt client");
@@ -97,36 +137,7 @@ export function startOwntracksCoordinator(deps: CoordinatorDeps): CoordinatorHan
 }
 
 function resolveUserId(deps: CoordinatorDeps): string | null {
+  if (deps.ownerUserId) return deps.ownerUserId;
   if (deps.config.forcedUserId) return deps.config.forcedUserId;
-  return deps.sessions.loadAny()?.userId ?? null;
-}
-
-async function forwardEventToActio(
-  event: LocationEvent,
-  userId: string,
-  deps: CoordinatorDeps,
-): Promise<void> {
-  const requestId = randomUUID();
-  const result = await forwardLocationToActio(
-    {
-      cernereUserId: userId,
-      lat: event.lat,
-      lon: event.lon,
-      acc: event.acc,
-      ts: event.ts,
-      deviceId: event.device,
-    },
-    deps.actioPlacement,
-  );
-  deps.audit.record({
-    source: "internal",
-    command: "actio.placement.location",
-    userId,
-    requestId,
-    status: result.ok ? "ok" : "error",
-    errorCode: result.ok ? undefined : "upstream_error",
-  });
-  if (!result.ok) {
-    log.warn({ err: result.error, status: result.status }, "actio forward failed");
-  }
+  return deps.sessions?.loadAny()?.userId ?? null;
 }
