@@ -105,7 +105,20 @@ export async function startBackend(opts: StartBackendOptions = {}): Promise<Back
   const dnstapConfig = loadDnstapConfig();
   const dnstapCoordinator: DnstapCoordinatorHandle = await startDnstapCoordinator(dnstapConfig);
 
-  const app = buildApp({ sessions, audit, startedAt });
+  log.info(
+    {
+      attendanceRelay: cfg.attendanceRelay.enabled,
+      attendanceReceiver: !!cfg.attendanceRelay.serviceKey,
+    },
+    "legatus attendance relay config",
+  );
+
+  const app = buildApp({
+    sessions,
+    audit,
+    startedAt,
+    attendanceRelay: cfg.attendanceRelay,
+  });
 
   const server = serve({
     fetch: app.fetch,
