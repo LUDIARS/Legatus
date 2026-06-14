@@ -191,6 +191,12 @@ Infisical で設定する主要キー:
 | `LEGATUS_LOCATION_MIN_DISPLACEMENT_M` | "動いていない" 判定の閾値 (default 100m) |
 | `ACTIO_BASE_URL` | Actio 本体 URL |
 | `ACTIO_PLACEMENT_SERVICE_KEY` | Actio Placement Module の service-key |
+| `MEMORIA_INGEST_URL` | 出席イベント転送先 Memoria の base URL (例 `http://127.0.0.1:5180`) |
+| `MEMORIA_INGEST_KEY` | Memoria ingest 認証キー (`X-Memoria-Ingest-Key`) |
+| `ATTENDANCE_RELAY_SERVICE_KEY` | Aedilis→Legatus 受信認証の service-key (`X-Attendance-Service-Key`) |
+
+`MEMORIA_INGEST_URL` + `MEMORIA_INGEST_KEY` が揃うと出席 relay が有効化され、
+`ATTENDANCE_RELAY_SERVICE_KEY` が受信口の認証になる (空なら受信口は 403)。
 
 詳細は `.env.example` 参照。
 
@@ -237,6 +243,8 @@ sign in 前は OwnTracks event は受信しても drop される。
 | OwnTracks (phone) → Legatus | MQTT (Tailscale) | GPS publish 受信 |
 | Legatus → Actio Placement | HTTP + service-key | location event 即時転送 |
 | Legatus → Memoria | PeerAdapter | 5 分集計サマリ転送 |
+| Aedilis → Legatus `/v1/attendance/checkin` | HTTP + service-key | 出席イベント受信 |
+| Legatus → Memoria `/api/attendance/ingest` | HTTP + ingest-key | 出席イベント転送 (同期, 転送結果を返す) |
 | (loopback) → Legatus `/health` | HTTP | 死活確認 |
 | (loopback) → Legatus `/v1/status` | HTTP | sign-in 状態確認 |
 

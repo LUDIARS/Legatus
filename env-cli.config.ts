@@ -52,6 +52,13 @@ const config: EnvCliConfig = {
     ACTIO_BASE_URL: "",
     ACTIO_PLACEMENT_SERVICE_KEY: "",
 
+    // ─── Attendance relay (Aedilis → Legatus → Memoria ingest) ──
+    // 受信: POST /v1/attendance/checkin (X-Attendance-Service-Key で認証)
+    // 転送: POST {MEMORIA_INGEST_URL}/api/attendance/ingest (X-Memoria-Ingest-Key)
+    MEMORIA_INGEST_URL: "",
+    MEMORIA_INGEST_KEY: "",
+    ATTENDANCE_RELAY_SERVICE_KEY: "",
+
     // ─── DNS / SNI tap (Phase B, default OFF) ─────────
     LEGATUS_DNSTAP_ENABLED: "false",
     LEGATUS_DNSMASQ_LOG_PATH: "/var/log/dnsmasq.log",
